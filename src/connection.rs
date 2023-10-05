@@ -6,11 +6,13 @@ use std::io::Cursor;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
+#[allow(dead_code)]
 pub struct Connection {
     stream: TcpStream,
     buffer: BytesMut,
 }
 
+#[allow(dead_code)]
 impl Connection {
     pub fn new(stream: TcpStream) -> Connection {
         Connection {
