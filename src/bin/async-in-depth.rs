@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::thread;
 use std::time::{Duration, Instant};
+use tokio_stream::{Stream, StreamExt};
 
 struct Delay {
     when: Instant,
@@ -46,6 +47,11 @@ fn main() {
 
         let out = future.await;
         assert_eq!(out, "done");
+        let mut delay_stream = Interval::new();
+
+        while let Some(_) = delay_stream.next().await {
+            println!("got value from delay stream.");
+        }
     });
 
     mini_tokio.run();
@@ -111,6 +117,42 @@ impl MiniTokio {
     fn run(&mut self) {
         while let Ok(task) = self.scheduled.recv() {
             task.poll();
+        }
+    }
+}
+
+struct Interval {
+    rem: usize,
+    delay: Delay,
+}
+
+impl Interval {
+    fn new() -> Self {
+        Self {
+            rem: 3,
+            delay: Delay {
+                when: Instant::now(),
+            },
+        }
+    }
+}
+
+impl Stream for Interval {
+    type Item = ();
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.rem == 0 {
+            return Poll::Ready(None);
+        }
+
+        match Pin::new(&mut self.delay).poll(cx) {
+            Poll::Ready(_) => {
+                let when = self.delay.when + Duration::from_millis(10);
+                self.delay = Delay { when };
+                self.rem -= 1;
+                Poll::Ready(Some(()))
+            }
+            Poll::Pending => Poll::Pending,
         }
     }
 }
